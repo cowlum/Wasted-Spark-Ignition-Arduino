@@ -7,36 +7,35 @@
 //Hall Effect Sensor Settings
 #define INTERRUPT_PIN D2
 void ICACHE_RAM_ATTR hallChanged();
-long int latestPulseMicros;
+volatile long int latestPulseMicros;
+//long int testmicros = 2000;
 long int prevPulseMicros;
-unsigned long int revMicros;
-unsigned long int prerevMicros;
+unsigned long int revMicros = 150000;
+unsigned long int prerevMicros = 150000;
 unsigned long int ignDelay;
 unsigned long int ignAdjust = 1;
-float calcAdvance;
-bool newPulse = false;
+//float calcAdvance;
+volatile bool newPulse = false;
 volatile bool magnet;
 bool previousMagnet;
-bool inRange;
+bool inRange = true;
 
-unsigned long int currentMicros;
+//unsigned long int currentMicros;
 unsigned long int dwellMicros;
 
 //BANK OUTPUTS
-//int led1 = 15;
-//int led2 = 12;
 #define bank1 15
 #define bank2 12
 #define bank1bit (1<<15)
 #define bank2bit (1<<12)
 long int rpm = 200;
-long int rpmDebug = 98;
+long int rpmDebug = 1;
 unsigned long int dwell = 3000;
 
 //Advance
 int advanceKey = 2;
 float advancePercentage[] = {
-  0.983,0.983,0.983,0.972,0.961,0.956,0.950,0.944,0.939,0.933,0.933,0.928,0.922,0.917,0.911,0.906,0.900,0.894,0.889,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.900,0.917,0.944,0.972,0.972
+  0.950,0.940,0.940,0.940,0.940,0.940,0.940,0.940,0.939,0.933,0.933,0.928,0.922,0.917,0.911,0.906,0.900,0.894,0.889,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.883,0.900,0.917,0.944,0.950,0.950,0.950,0.950
   }; 
 // 0                                                     10                             15                            20                            25                            30                           35                            40                            45        
 float dwellPercentage[] = {
@@ -68,43 +67,41 @@ void hallChanged()
 }
 
 void delayfunc()
-{
-   currentMicros = micros();
-     while(currentMicros - latestPulseMicros <= (ignDelay - dwell)) {
-     currentMicros = micros();
-     }
-}
-
-void delaydwellfunc()
-{ 
-  currentMicros = micros();
-  dwellMicros = currentMicros;
-    while (currentMicros - dwellMicros <= dwell) {
-    currentMicros = micros();
+{     
+     while (micros() - latestPulseMicros <= (ignDelay - dwell) && (newPulse == false) ) {
     }
 }
 
+
+void delaydwellfunc()
+{ 
+    dwellMicros = micros();
+    while ((micros() - dwellMicros <= dwell) && (newPulse == false)) {
+      }
+    }
+
+
 void magnetfunction()  // Function to fire the banks
 {
+  
   if (magnet != previousMagnet){
     rpmDebug++;
     if (magnet == true){ 
       previousMagnet = magnet;
-      if ((rpm>=100) && (rpm<=2100) && (inRange == true))
+      if ((rpm>=150) && (rpm<=2100) && (inRange == true))
         {
       delayfunc();
-      //delayMicroseconds(dwell);
+      WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + 4, bank2bit );
       delaydwellfunc();
       WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + 8, bank2bit );
         }
     }
     else {
       previousMagnet = magnet;
-      if ((rpm>=200) && (rpm<=2100) && (inRange == true))
+      if ((rpm>=150) && (rpm<=2100) && (inRange == true))
         {
       delayfunc();
-      WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + 4, bank1bit );
-      //delayMicroseconds(dwell); 
+      WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + 4, bank1bit ); 
       delaydwellfunc();
       WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + 8, bank1bit );
         }
@@ -114,37 +111,9 @@ void magnetfunction()  // Function to fire the banks
   }
 }
 
-void pulseFunction()
-{
-      if (newPulse == true) {
-
-      prerevMicros=revMicros; // In range function last revolution timing is recorded for the in range function
-      
-      revMicros = latestPulseMicros - prevPulseMicros; // revMicros equals the new pulse just taken minus the old revmicros
-      prevPulseMicros = latestPulseMicros; //
-      newPulse = false;
-      
-      //Check for wild variation
-      inRangefunc();
-      
-      //Reset dwell
-      dwell = 3000;
-
-      // calculate RPM based on time between pulses
-      ignDelay = (revMicros * (advancePercentage[advanceKey]));
-      ignDelay = ignDelay + ignAdjust;
-      dwell = (dwell * dwellPercentage[advanceKey]);
-      rpm = (revMicros*2)/1000;
-      rpm = (1000/rpm)*60;
-      advanceKey = round(rpm/100);
-      magnetfunction();
-      //advanceKey = advanceKey + ignAdjust;
-  }
-}
-
 void inRangefunc()
 {
-  if ((revMicros>(prerevMicros * 0.10)) && revMicros<(prerevMicros * 1.10)) // UPDATE NEEDED: if rpm above 400 then variable width can shrink
+  if ((revMicros>(prerevMicros * 0.70)) && revMicros<(prerevMicros * 1.10)) // Left is Acceleration limit. Right is deAccelration
 {
   inRange = true;
   //Serial.print(" \n Within Range");
@@ -153,34 +122,93 @@ else
 {
   inRange = false;
   Serial.print(" \n Range Exceeded NO FIRE");
+  Serial.print(", prerevMircros = ");
+  Serial.print(prerevMicros);
+  Serial.print(", igndelay = ");
+  Serial.print(revMicros);
+  Serial.print(", as a percent = ");
+  Serial.print((float)revMicros/(float)prerevMicros);
+
 }
 }
+
+void pulseFunction()
+{
+      if (newPulse == true) {
+      newPulse = false;
+       
+      prerevMicros=revMicros; // In range function last revolution timing is recorded for the in range function, this must be befor revMicros
+      
+      revMicros = latestPulseMicros - prevPulseMicros;   // revMicros equals the new pulse just taken minus the old revmicros
+      if ((revMicros < 7000) && (revMicros > 210000)){
+        Serial.print(" \n REVMICROS redacted");
+        revMicros = 2100000;
+      }
+      
+      prevPulseMicros = latestPulseMicros; 
+
+      //Check for wild variation
+      inRangefunc();
+      
+      //Reset dwell
+      dwell = 3000;
+
+      // calculate RPM based on time between pulses
+
+      rpm = (revMicros*2)/1000;
+      rpm = (1000/rpm)*60;
+
+      advanceKey = round(rpm/100);
+      if ((rpm < 500) && (advanceKey > 10))  { // Probably not needed due to the revMicros Reset.
+       Serial.print(" \n ADVANCE KEY redacted");
+        advanceKey = 2;
+      }
+
+      dwell = (dwell * dwellPercentage[advanceKey]);
+      ignDelay = (revMicros * (advancePercentage[advanceKey]));
+      ignDelay = ignDelay + ignAdjust; 
+      
+      magnetfunction();
+      
+      //advanceKey = advanceKey + ignAdjust;
+  }
+}
+
+
 void loop()
 {
 
     pulseFunction();  
-      
+     
 
     // DEBUG
+    ///*
       if (rpmDebug == 100){
         rpmDebug=1;
-        calcAdvance = ((float)ignDelay/(float)revMicros);
+//        calcAdvance = ((float)ignDelay/(float)revMicros);
         Serial.print("\n");
         Serial.print("\n RPM =  ");
         Serial.print(rpm);
-        //Serial.print("\n percentage ignDelay/revMicros");
-        //Serial.print((float)ignDelay/(float)revMicros)*100;
-        Serial.print("\n degrees advance past TDC (minus 45 sensor) ");
-        Serial.print(135-(180*(float)advancePercentage[advanceKey])); //125 degress because sensor is 55 (45-10)  degrees ATDC.
+        Serial.print("\n percentage ignDelay/revMicros");
+        Serial.print((float)ignDelay/(float)revMicros)*100;
+        Serial.print("\n degrees advance ");
+        Serial.print(180-(180*(float)advancePercentage[advanceKey])); //125 degress because sensor is 55 (45-10)  degrees ATDC.
         Serial.print("\n revmicros  ");
         Serial.print(revMicros);
         Serial.print("\n igndelay  ");
         Serial.print(ignDelay);
-        Serial.print("\n Dwell  ");
-        Serial.print(dwell);
-        Serial.print(" \n prerevMircros ");
-        Serial.print(prerevMicros);
-        Serial.print(" \n Calculated advance ");
-        Serial.print(calcAdvance);
-      }    
+        //Serial.print("\n Dwell  ");
+        //Serial.print(dwell);
+//        Serial.print(" \n prerevMircros ");
+//        Serial.print(prerevMicros);
+//        Serial.print(" \n  latestPulseMicros  ");
+//        Serial.print(latestPulseMicros);
+        //Serial.print(" \n AdvanceKey  ");
+        //Serial.print(advanceKey);
+//        Serial.print(" \n PrepulsMicros  ");
+//        Serial.print(prevPulseMicros);
+        Serial.print("\n as a percent = ");
+        Serial.print((float)revMicros/(float)prerevMicros);
+      }
+      //*/    
   }
