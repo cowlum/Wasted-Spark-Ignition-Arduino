@@ -12,7 +12,8 @@ WebServer         webServer(80);          // HTTP server
  
 String page = "";
 String text = "";
-double data;
+double rpmdata;
+int dwell = 3000;
  
 void setup(void){
   // configure access point
@@ -31,29 +32,64 @@ void setup(void){
  //Serial.println(ssid);
  Serial.print("IP address: ");
  Serial.println(WiFi.localIP());
- webServer.on("/data.txt", [](){
-   text = (String)data;
+ webServer.on("/rpmdata.txt", [](){
+   text = (String)rpmdata;
+   text = (String)dwell;
    webServer.send(200, "text/html", text);
  });
  webServer.on("/", [](){
-   page = "<h3>Atomic4</h3><h1>RPM:</h1> <h1 id=\"data\">""</h1>\r\n";
-   page += "<script>\r\n";
-   page += "var x = setInterval(function() {loadData(\"data.txt\",updateData)}, 100);\r\n";
-   page += "function loadData(url, callback){\r\n";
-   page += "var xhttp = new XMLHttpRequest();\r\n";
-   page += "xhttp.onreadystatechange = function(){\r\n";
-   page += " if(this.readyState == 4 && this.status == 200){\r\n";
-   page += " callback.apply(xhttp);\r\n";
-   page += " }\r\n";
-   page += "};\r\n";
-   page += "xhttp.open(\"GET\", url, true);\r\n";
-   page += "xhttp.send();\r\n";
-   page += "}\r\n";
-   page += "function updateData(){\r\n";
-   page += " document.getElementById(\"data\").innerHTML = this.responseText;\r\n";
-   page += "}\r\n";
-   page += "</script>\r\n";
-   webServer.send(200, "text/html", page);
+  String ptr = "<!DOCTYPE html>";
+  ptr +="<html>";
+  ptr +="<head>";
+  ptr +="<title>ESP8266 Weather Station</title>";
+  ptr +="<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  ptr +="<style>";
+  ptr +="html { font-family: 'Open Sans', sans-serif; display: block; margin: 0px auto; text-align: center;color: #444444;}";
+  ptr +="body{margin: 50px;} ";
+  ptr +="h1 {margin: 50px auto 30px;} ";
+  ptr +=".side-by-side{display: table-cell;vertical-align: middle;position: relative;}";
+  ptr +=".text{font-weight: 600;font-size: 19px;width: 200px;}";
+  ptr +=".reading{font-weight: 300;font-size: 50px;padding-right: 25px;}";
+  ptr +=".rpm .reading{color: #F29C1F;}";
+  ptr +=".dwell .reading{color: #3B97D3;}";
+  ptr +=".advance .reading{color: #26B99A;}";
+  ptr +=".superscript{font-size: 17px;font-weight: 600;position: absolute;top: 10px;}";
+  ptr +=".rpmdata{padding: 10px;}";
+  ptr +=".container{display: table;margin: 0 auto;}";
+  ptr +="</style>";
+  ptr +="<script>\n";
+  ptr +="setInterval(loadDoc,100);\n";
+  ptr +="function loadDoc() {\n";
+  ptr +="var xhttp = new XMLHttpRequest();\n";
+  ptr +="xhttp.onreadystatechange = function() {\n";
+  ptr +="if (this.readyState == 4 && this.status == 200) {\n";
+  ptr +="document.body.innerHTML =this.responseText}\n";
+  ptr +="};\n";
+  ptr +="xhttp.open(\"GET\", \"/\", true);\n";
+  ptr +="xhttp.send();\n";
+  ptr +="}\n";
+  ptr +="</script>\n";
+  ptr +="</head>";
+  ptr +="<body>";
+  ptr +="<h1>Atomic RPM</h1>";
+  ptr +="<div class='container'>";
+  ptr +="<div class='rpmdata rpm'>";
+  ptr +="<div class='side-by-side icon'>";;
+  ptr +="</div>";
+  ptr +="<div class='side-by-side text'>rpm</div>";
+  ptr +="<div class='side-by-side reading'>";
+  ptr +=(int)rpmdata;
+  ptr +="</div>";
+  ptr +="<div class='container'>";
+  ptr +="<div class='rpmdata dwell'>";
+  ptr +="<div class='side-by-side icon'>";;
+  ptr +="</div>";
+  ptr +="<div class='side-by-side text'>dwell</div>";
+  ptr +="<div class='side-by-side reading'>";
+  ptr +=(int)dwell;
+  ptr +="</body>";
+  ptr +="</html>";
+  webServer.send(200, "text/html", ptr);
 });
  
  webServer.begin();
@@ -62,7 +98,9 @@ void setup(void){
  
 void loop(void){
  RPM++;
- data = RPM;
+ dwell--;
+ rpmdata = RPM;
+ //dwell = 3500;
  dnsServer.processNextRequest();
  webServer.handleClient();
 }
