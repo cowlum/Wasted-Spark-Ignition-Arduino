@@ -1,0 +1,68 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+
+int RPM = 1;
+ 
+const byte        DNS_PORT = 53;          // Capture DNS requests on port 53
+IPAddress         apIP(10, 10, 10, 1);    // Private network for server
+DNSServer         dnsServer;              // Create the DNS object
+WebServer         webServer(80);          // HTTP server
+
+ 
+String page = "";
+String text = "";
+double data;
+ 
+void setup(void){
+  // configure access point
+  WiFi.mode(WIFI_AP);
+  delay(100);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  delay(100);
+  WiFi.softAP("atomicspark"); // WiFi name 
+
+  dnsServer.setTTL(300);
+  dnsServer.setErrorReplyCode(DNSReplyCode::ServerFailure);
+  // start DNS server for a specific domain name
+  dnsServer.start(DNS_PORT, "atomicspark.com", apIP); 
+ Serial.println("");
+ Serial.print("Connected to ");
+ //Serial.println(ssid);
+ Serial.print("IP address: ");
+ Serial.println(WiFi.localIP());
+ webServer.on("/data.txt", [](){
+   text = (String)data;
+   webServer.send(200, "text/html", text);
+ });
+ webServer.on("/", [](){
+   page = "<h3>Atomic4</h3><h1>RPM:</h1> <h1 id=\"data\">""</h1>\r\n";
+   page += "<script>\r\n";
+   page += "var x = setInterval(function() {loadData(\"data.txt\",updateData)}, 100);\r\n";
+   page += "function loadData(url, callback){\r\n";
+   page += "var xhttp = new XMLHttpRequest();\r\n";
+   page += "xhttp.onreadystatechange = function(){\r\n";
+   page += " if(this.readyState == 4 && this.status == 200){\r\n";
+   page += " callback.apply(xhttp);\r\n";
+   page += " }\r\n";
+   page += "};\r\n";
+   page += "xhttp.open(\"GET\", url, true);\r\n";
+   page += "xhttp.send();\r\n";
+   page += "}\r\n";
+   page += "function updateData(){\r\n";
+   page += " document.getElementById(\"data\").innerHTML = this.responseText;\r\n";
+   page += "}\r\n";
+   page += "</script>\r\n";
+   webServer.send(200, "text/html", page);
+});
+ 
+ webServer.begin();
+ Serial.println("Web server started!");
+}
+ 
+void loop(void){
+ RPM++;
+ data = RPM;
+ dnsServer.processNextRequest();
+ webServer.handleClient();
+}
