@@ -1,6 +1,22 @@
+
+// 1.1 Removal of DNS and delay 1 microsecond for housekeeping on core 0
+//
+//
+
 // Core Tasks
 TaskHandle_t Task1;
 TaskHandle_t Task2;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t temprature_sens_read();
+#ifdef __cplusplus
+}
+#endif
+uint8_t temprature_sens_read();
+
 
 /// IGNITION SETUP
 
@@ -12,7 +28,7 @@ void ICACHE_RAM_ATTR hallChanged();
 
 //Timing calc variables
 volatile bool newPulse = false;
-float revMicros = 150000;
+volatile float revMicros = 150000;
 int advancetach = 0;
 volatile unsigned long int latestPulseMicros; 
 unsigned long int prevPulseMicros;
@@ -23,7 +39,10 @@ unsigned long int dwellMicros;
 long int ignAdjust = 500; //timing adjestment. Should be zero when hall effect in correct position.
 
 bool inRange = true;
+int missfire = 0;
 float rpmtach = 0;
+float cputemp = 0;
+char* revlimit = "false";
 unsigned long int rpm = 200;
 unsigned long int rpmDebug = 0;
 unsigned long int dwell = 3000;
@@ -52,18 +71,18 @@ float dwellPercentage[] = {
 
 #include <WiFi.h>
 #include <WebServer.h>
-#include <DNSServer.h>
 
-const byte        DNS_PORT = 53;          // Capture DNS requests on port 53
 IPAddress         apIP(10, 10, 10, 1);    // Private network for server
-DNSServer         dnsServer;              // Create the DNS object
 WebServer         webServer(80);          // HTTP server
 
 void setup() {
   disableCore0WDT();
   disableCore1WDT();
   Serial.begin(115200);
+  Serial.print((temprature_sens_read() - 32) / 1.8);
+  Serial.print("\n");
   
+  Serial.print("\n");
   pinMode(bank1, OUTPUT); 
   pinMode(bank2, OUTPUT);
   pinMode(tach, OUTPUT);
@@ -98,8 +117,8 @@ void setup() {
 void Task1code( void * pvParameters ){
   wifisetup();
   for(;;){
-    dnsServer.processNextRequest();
     webServer.handleClient();
+    delay(1);
   } 
 }
 void Task2code( void * pvParameters ){
@@ -122,10 +141,6 @@ void wifisetup(){
   delay(10);
   WiFi.softAP("atomicspark"); // WiFi name
   delay(10);
-
-  dnsServer.setTTL(300);
-  dnsServer.setErrorReplyCode(DNSReplyCode::ServerFailure);
-  dnsServer.start(DNS_PORT, "atomicspark.com", apIP); 
  
  webServer.on("/", [](){
   String ptr = "<!DOCTYPE html>";
@@ -175,14 +190,32 @@ void wifisetup(){
   ptr +="<div class='side-by-side icon'>";;
   ptr +="</div>";
   ptr +="<div class='side-by-side text'>advance</div>";
-  //ptr +="<div class='side-by-side reading'>";
+  ptr +="<div class='side-by-side reading'>";
   ptr +=(int)advancetach;
   ptr +="</div>";
   ptr +="<div class='container'>";
   ptr +="<div class='dwell'>";
   ptr +="<div class='side-by-side text'>dwell</div>";
-  //ptr +="<div class='side-by-side reading'>";
+  ptr +="<div class='side-by-side reading'>";
   ptr +=(int)dwell;
+  ptr +="</div>";
+  ptr +="<div class='container'>";
+  ptr +="<div class='dwell'>";
+  ptr +="<div class='side-by-side text'>CPU temp</div>";
+  ptr +="<div class='side-by-side reading'>";
+  ptr +=(int)cputemp;
+  ptr +="</div>";
+  ptr +="<div class='container'>";
+  ptr +="<div class='revlimit'>";
+  ptr +="<div class='side-by-side text'>RPM limiter</div>";
+  ptr +="<div class='side-by-side reading'>";
+  ptr +=revlimit;
+  ptr +="</div>";
+  ptr +="<div class='container'>";
+  ptr +="<div class='missfire'>";
+  ptr +="<div class='side-by-side text'>Missfire</div>";
+  ptr +="<div class='side-by-side reading'>";
+  ptr +=missfire;
   ptr +="</div>";
   ptr +="</body>";
   ptr +="</html>";
@@ -201,7 +234,7 @@ void hallChanged()
       GPIO.out_w1tc = (1 << bank1);
       GPIO.out_w1tc = (1 << bank2);
       GPIO.out_w1tc = (1 << tach);
-      
+  
   latestPulseMicros = micros();
   newPulse = true;  
   //Serial.print(" \n interrupt ");
@@ -240,6 +273,7 @@ void magnetfunction()  // Function to fire the banks
       if ((rpm>=200) && (rpm<=2400) && (inRange == true))
         {
       delayfunc();
+      revlimit = "false";
       GPIO.out_w1ts = (1 << bank1);
       GPIO.out_w1ts = (1 << tach);
       delaydwellfunc();
@@ -256,9 +290,12 @@ void magnetfunction()  // Function to fire the banks
       GPIO.out_w1ts = (1 << tach);
       delaydwellfunc();
       GPIO.out_w1tc = (1 << bank2);
-      GPIO.out_w1tc = (1 << tach);
+      GPIO.out_w1tc = (1 << tach);}
+      else{
+               revlimit = "true";
+      Serial.print("revlimiter");
         }
-        }
+    }      
   }
   else {
   }
@@ -274,6 +311,7 @@ void inRangefunc()
 }
 else
 {
+  missfire++;
   inRange = false;
   Serial.print(" \n Range Exceeded NO FIRE");  // debugging
   Serial.print(", prerevMircros = ");
@@ -323,7 +361,13 @@ void pulseFunction()
       rpm = (1000/rpm)*60;
       rpmtach = (revMicros*2)/1000;
       rpmtach = (1000/rpmtach)*60;
-
+      if (rpmtach < 101){
+        rpmtach = 0;
+      }
+          
+      
+      cputemp = ((temprature_sens_read() - 32) / 1.8); 
+      
       advancetach = 180-(180*(float)advancePercentage[advanceKey]);
 
       //Using rpm select the advance key for use with advance array.
