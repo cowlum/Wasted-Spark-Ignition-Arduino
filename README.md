@@ -2,8 +2,8 @@ Wasted Spark Ignition system for atomic4 engine. Should work as the basis for mo
 
 TODO###
 
-Use remotedebug librabry to send rpm,dwell,misfire eetc over telent.
-https://github.com/JoaoLopesF/RemoteDebug
+Use remotedebug librabry to send rpm,dwell,misfire eetc over telent. \n
+https://github.com/JoaoLopesF/RemoteDebug \n
 Remove the wifi webpage display and replace with nmea stream to onboard nmea server. e.g. IIRPM
 
 December 2020 Engine running very well. 
