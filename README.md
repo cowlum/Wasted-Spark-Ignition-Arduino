@@ -1,6 +1,7 @@
 Wasted Spark Ignition system for atomic4 engine. Should work as the basis for most 4 cylinder engines.
 
 TODO###
+
 Use remotedebug librabry to send rpm,dwell,misfire eetc over telent.
 Remove the wifi webpage display and replace with nmea stream to onboard nmea server. e.g. IIRPM
 
