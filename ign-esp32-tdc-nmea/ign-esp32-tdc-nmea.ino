@@ -17,7 +17,7 @@ const char* ssid = "midnitesun";
 const char* password =  "ericson27";
 const char* server = "10.0.0.1";
 int port = 50015;
-int rev_limit = 2400;
+
 
 int connectAttempts = 0;
 
@@ -40,16 +40,15 @@ volatile unsigned long int latestPulseMicros;
 unsigned long int prevPulseMicros;
 unsigned long int prerevMicros = 150000;
 unsigned long int ignDelay = 2500000;
-unsigned long int dwellMicros;
+unsigned long int dwellMicros;  
 
 long int ignAdjust = 500; //timing adjestment. Should be zero when hall effect in correct position.
+int rev_limit = 2400; // max rpm before spark cut
 
 bool inRange = true;
 int missfire = 0;
 unsigned long int rpmtach = 0;
-char* revlimit = "false";
 unsigned long int rpm = 200;
-unsigned long int rpmDebug = 0;
 unsigned long int dwell = 3000;
 int advanceKey = 2;
 
@@ -79,7 +78,6 @@ void setup() {
   disableCore1WDT();
   Serial.begin(115200);
   
-  Serial.print("\n");
   pinMode(bank1, OUTPUT); 
   pinMode(bank2, OUTPUT);
   pinMode(tach, OUTPUT);
@@ -148,7 +146,6 @@ void wifi_connect(){
   String Host_Name =  String(WiFi.localIP());
   Debug.begin(Host_Name);
   Debug.setResetCmdEnabled(true); // Enable the reset command
-
 }
 
 void nmea_sender(){ // Compile san send the nmea sentence.
@@ -185,7 +182,7 @@ int nmea0183_checksum(char *nmea_array){  // https://forum.arduino.cc/t/nmea0183
     int crc = 0;
     int i;
     // ignore the first $ sign,  no checksum in sentence
-    for (i = 1; i < strlen(nmea_array); i ++) { // removed the - 3 because no cksum is present
+    for (i = 1; i < strlen(nmea_array); i ++) { 
         crc ^= nmea_array[i];
     }
     return crc;
@@ -198,13 +195,12 @@ int nmea0183_checksum(char *nmea_array){  // https://forum.arduino.cc/t/nmea0183
 
 // interrupt triggers, turn off going high on coil pack(may be redundant if the bank(s) already fired),ser time of interrupt, newpulse and magnet polarity.
 void hallChanged(){
-      GPIO.out_w1tc = (1 << bank1);
-      GPIO.out_w1tc = (1 << bank2);
-      GPIO.out_w1tc = (1 << tach);
-  
+  GPIO.out_w1tc = (1 << bank1);
+  GPIO.out_w1tc = (1 << bank2);
+  GPIO.out_w1tc = (1 << tach);
+ 
   latestPulseMicros = micros();
   newPulse = true;  
-  //Serial.print(" \n interrupt ");
   if(digitalRead(INTERRUPT_PIN) == 0){
     magnet = true;
    }
@@ -229,13 +225,11 @@ void delaydwellfunc(){
 //If magnet polarity change, wait 1/2 rpm duration, pin up for dwell duration, then pin down. 
 void magnetfunction(){  //function that fires the banks
   if (magnet != previousMagnet){
-    rpmDebug++; // for debugging
     if (magnet == true){ 
       previousMagnet = magnet;
       if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
         {
       delayfunc();
-      revlimit = "false";
       GPIO.out_w1ts = (1 << bank1);
       GPIO.out_w1ts = (1 << tach);
       delaydwellfunc();
@@ -246,16 +240,16 @@ void magnetfunction(){  //function that fires the banks
     else {
       previousMagnet = magnet;
       if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
-        {
+       {
       delayfunc();
       GPIO.out_w1ts = (1 << bank2);
       GPIO.out_w1ts = (1 << tach);
       delaydwellfunc();
       GPIO.out_w1tc = (1 << bank2);
-      GPIO.out_w1tc = (1 << tach);}
+      GPIO.out_w1tc = (1 << tach);
+      }
       else{
-               revlimit = "true";
-      Serial.print("revlimiter");
+      //Serial.print("revlimiter");
         }
     }      
   }
