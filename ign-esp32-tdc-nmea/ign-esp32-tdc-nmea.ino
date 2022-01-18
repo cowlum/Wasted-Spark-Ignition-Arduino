@@ -1,6 +1,7 @@
 // 1.1 Removal of DNS and delay 1 microsecond for housekeeping on core 0
 //
 //
+#include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,11 +17,12 @@ const char* ssid = "midnitesun";
 const char* password =  "ericson27";
 const char* server = "10.0.0.1";
 int port = 50015;
+int rev_limit = 2400;
 
 int connectAttempts = 0;
 
 WiFiClient client;
-
+RemoteDebug Debug;
 
 /// IGNITION SETUP
 
@@ -142,6 +144,11 @@ void wifi_connect(){
     }
   }
   client.connect(server, port);
+  // Initialize the server (telnet or web socket) of RemoteDebug
+  String Host_Name =  String(WiFi.localIP());
+  Debug.begin(Host_Name);
+  Debug.setResetCmdEnabled(true); // Enable the reset command
+
 }
 
 void nmea_sender(){ // Compile san send the nmea sentence.
@@ -154,9 +161,24 @@ void nmea_sender(){ // Compile san send the nmea sentence.
      client.print("*");
      client.println(nmea0183_checksum(nmea_array), HEX);
      //client.println("$IIXDR,T,800.0,R,ENGINE#0*73");
-     Serial.print(nmea_rpm_str);
-     Serial.print("*");
-     Serial.println(nmea0183_checksum(nmea_array), HEX);
+     //Serial.print(nmea_rpm_str);
+     //Serial.print("*");
+     //Serial.println(nmea0183_checksum(nmea_array), HEX);
+    
+      #ifndef DEBUG_DISABLED
+      if (Debug.isActive(Debug.VERBOSE)) {
+          debugI("Rpm   = %d", rpmtach);
+          debugI("Dwell = %d", dwell);
+          debugV("IgnDelay = %d", ignDelay);
+          debugV("missfire = %d", missfire);
+          debugV("IgnAdjust = %d", ignAdjust);
+          debugV("revMicros = %d", revMicros);
+          debugV("prerevMicros = %d", prerevMicros);
+          debugV("rev_limit = %d", rev_limit);
+          debugV("--------------------------");
+      }
+      #endif
+      Debug.handle();
 }
  
 int nmea0183_checksum(char *nmea_array){  // https://forum.arduino.cc/t/nmea0183-checksum/559531/2
@@ -211,7 +233,7 @@ void magnetfunction(){  //function that fires the banks
     rpmDebug++; // for debugging
     if (magnet == true){ 
       previousMagnet = magnet;
-      if ((rpm>=200) && (rpm<=2400) && (inRange == true))
+      if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
         {
       delayfunc();
       revlimit = "false";
@@ -224,7 +246,7 @@ void magnetfunction(){  //function that fires the banks
     }
     else {
       previousMagnet = magnet;
-      if ((rpm>=200) && (rpm<=2400) && (inRange == true))
+      if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
         {
       delayfunc();
       GPIO.out_w1ts = (1 << bank2);
@@ -251,6 +273,7 @@ void inRangefunc(){
 } else {
   missfire++;
   inRange = false;
+  /*
   Serial.print(" \n Range Exceeded NO FIRE");  // debugging
   Serial.print(", prerevMircros = ");
   Serial.print(prerevMicros);
@@ -260,7 +283,7 @@ void inRangefunc(){
   Serial.print(revMicros);
   Serial.print(", as a percent = ");
   Serial.print((float)revMicros/(float)prerevMicros);
-  }
+  */}
 }
 
 /*
