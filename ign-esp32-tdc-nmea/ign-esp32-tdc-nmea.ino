@@ -1,10 +1,26 @@
 // 1.1 Removal of DNS and delay 1 microsecond for housekeeping on core 0
 //
 //
+#include <WiFi.h>
+#include <stdio.h>
+#include <string.h>
 
 // Core Tasks
 TaskHandle_t Task1;
 TaskHandle_t Task2;
+
+/* 
+Wifi Variables 
+*/
+const char* ssid = "midnitesun";
+const char* password =  "ericson27";
+const char* server = "10.0.0.1";
+int port = 50015;
+
+int connectAttempts = 0;
+
+WiFiClient client;
+
 
 /// IGNITION SETUP
 
@@ -28,8 +44,7 @@ long int ignAdjust = 500; //timing adjestment. Should be zero when hall effect i
 
 bool inRange = true;
 int missfire = 0;
-float rpmtach = 0;
-float cputemp = 0;
+unsigned long int rpmtach = 0;
 char* revlimit = "false";
 unsigned long int rpm = 200;
 unsigned long int rpmDebug = 0;
@@ -95,8 +110,13 @@ void setup() {
 
 
 void Task1code( void * pvParameters ){
-    delay(1);
+  wifi_connect();
+  for(;;){
+    nmea_sender();
+    delay(1000);
+  }
 }
+
 void Task2code( void * pvParameters ){
   pinMode(INTERRUPT_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), hallChanged, CHANGE);
@@ -105,12 +125,57 @@ void Task2code( void * pvParameters ){
   }
 }
 
+/*
+   NMEA LOGIC
+*/
 
-//#### LOGIC FOR IGNITION ######
+void wifi_connect(){
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi..");
+    connectAttempts++;
+    if (connectAttempts == 120){
+      WiFi.mode(WIFI_OFF);
+      break;
+    }
+  }
+  client.connect(server, port);
+}
 
-// interrupt triggers, turn off going high on coil pack(may be redundant),ser time of interrupt, newpulse and magnet polarity.
-void hallChanged() 
-{
+void nmea_sender(){ // Compile san send the nmea sentence.
+ rpmtach = random(1200, 1300);
+     String nmea_rpm_str = "$IIXDR,T," + String(rpmtach) + ".0,R,ENGINE#0";
+     int nmea_len = nmea_rpm_str.length() + 1;
+     char nmea_array[nmea_len]; 
+     nmea_rpm_str.toCharArray(nmea_array, nmea_len);
+     client.print(nmea_rpm_str);
+     client.print("*");
+     client.println(nmea0183_checksum(nmea_array), HEX);
+     //client.println("$IIXDR,T,800.0,R,ENGINE#0*73");
+     Serial.print(nmea_rpm_str);
+     Serial.print("*");
+     Serial.println(nmea0183_checksum(nmea_array), HEX);
+}
+ 
+int nmea0183_checksum(char *nmea_array){  // https://forum.arduino.cc/t/nmea0183-checksum/559531/2
+    int crc = 0;
+    int i;
+    // ignore the first $ sign,  no checksum in sentence
+    for (i = 1; i < strlen(nmea_array); i ++) { // removed the - 3 because no cksum is present
+        crc ^= nmea_array[i];
+    }
+    return crc;
+}
+
+
+/*
+   IGNITION LOGIC
+*/
+
+// interrupt triggers, turn off going high on coil pack(may be redundant if the bank(s) already fired),ser time of interrupt, newpulse and magnet polarity.
+void hallChanged(){
       GPIO.out_w1tc = (1 << bank1);
       GPIO.out_w1tc = (1 << bank2);
       GPIO.out_w1tc = (1 << tach);
@@ -127,15 +192,13 @@ void hallChanged()
 }
 
 // Delay for 1/2 revolution before dwell starts
-void delayfunc() 
-{     
+void delayfunc(){     
      while (micros() - latestPulseMicros <= (ignDelay - dwell) && (newPulse == false) ) {
     }
 }
 
 //duration of dwell
-void delaydwellfunc() 
-{ 
+void delaydwellfunc(){ 
     dwellMicros = micros();
     while ((micros() - dwellMicros <= dwell) && (newPulse == false)) {
       }
@@ -143,9 +206,7 @@ void delaydwellfunc()
 
 
 //If magnet polarity change, wait 1/2 rpm duration, pin up for dwell duration, then pin down. 
-void magnetfunction()  // Function to fire the banks
-{
-  
+void magnetfunction(){  //function that fires the banks
   if (magnet != previousMagnet){
     rpmDebug++; // for debugging
     if (magnet == true){ 
@@ -182,15 +243,12 @@ void magnetfunction()  // Function to fire the banks
 }
 
 // Check the last 1/2 rpm is not too much faster or slower than the latest.
-void inRangefunc()
-{
+void inRangefunc(){
   if ((revMicros>(prerevMicros * 0.60)) && revMicros<(prerevMicros * 1.10)) // Left is Acceleration limit. Right is deAccelration
 {
   inRange = true;
   //Serial.print(" \n Within Range");
-}
-else
-{
+} else {
   missfire++;
   inRange = false;
   Serial.print(" \n Range Exceeded NO FIRE");  // debugging
@@ -202,8 +260,7 @@ else
   Serial.print(revMicros);
   Serial.print(", as a percent = ");
   Serial.print((float)revMicros/(float)prerevMicros);
-
-}
+  }
 }
 
 /*
@@ -212,13 +269,11 @@ last 1/2 rpm time is set to prerevMicros for inrange func to utilise.
 latest 1/2 rpm time is recorded and checked for duration limits.
 
 */
-void pulseFunction()
-{
+void pulseFunction(){
       if (newPulse == true) {
-      newPulse = false;
-       
+      newPulse = false;  
       prerevMicros=revMicros; // In range function
-      
+     
       revMicros = latestPulseMicros - prevPulseMicros;   // revMicros equals the new pulse just taken minus the old revmicros
       if ((revMicros < 7000) || (revMicros > 210000)){
         Serial.print(" \n REVMICROS redacted  ");
