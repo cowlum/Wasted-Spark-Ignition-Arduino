@@ -152,7 +152,7 @@ void wifi_connect(){
 }
 
 void nmea_sender(){ // Compile san send the nmea sentence.
- rpmtach = random(1200, 1300);
+ //rpmtach = random(1200, 1300); //used for debugging, fake RPM.
      String nmea_rpm_str = "$IIXDR,T," + String(rpmtach) + ".0,R,ENGINE#0";
      int nmea_len = nmea_rpm_str.length() + 1;
      char nmea_array[nmea_len]; 
@@ -180,7 +180,7 @@ void nmea_sender(){ // Compile san send the nmea sentence.
       #endif
       Debug.handle();
 }
- 
+
 int nmea0183_checksum(char *nmea_array){  // https://forum.arduino.cc/t/nmea0183-checksum/559531/2
     int crc = 0;
     int i;
@@ -225,7 +225,6 @@ void delaydwellfunc(){
     while ((micros() - dwellMicros <= dwell) && (newPulse == false)) {
       }
     }
-
 
 //If magnet polarity change, wait 1/2 rpm duration, pin up for dwell duration, then pin down. 
 void magnetfunction(){  //function that fires the banks
@@ -290,7 +289,6 @@ void inRangefunc(){
 Upon newPulse from interrupt.
 last 1/2 rpm time is set to prerevMicros for inrange func to utilise.
 latest 1/2 rpm time is recorded and checked for duration limits.
-
 */
 void pulseFunction(){
       if (newPulse == true) {
