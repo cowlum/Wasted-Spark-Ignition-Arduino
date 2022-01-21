@@ -20,8 +20,11 @@ int port = 50015;
 
 
 int connectAttempts = 0;
+int WiFiconnectAttempts = 0;
+unsigned long time_since_failure;
 
 WiFiClient client;
+
 RemoteDebug Debug;
 
 /// IGNITION SETUP
@@ -43,7 +46,7 @@ unsigned long int ignDelay = 2500000;
 unsigned long int dwellMicros;  
 
 long int ignAdjust = 500; //timing adjestment. Should be zero when hall effect in correct position.
-int rev_limit = 2400; // max rpm before spark cut
+int rev_limit = 2200; // max rpm before spark cut
 
 bool inRange = true;
 int missfire = 0;
@@ -69,8 +72,6 @@ float advancePercentage[] = {
 float dwellPercentage[] = {
   1.300,1.300,1.300,1.300,1.300,1.250,1.250,1.250,1.200,1.100,1.050,1.000,1.000,1.000,1.000,0.990,0.980,0.970,0.960,0.950,0.940,0.930,0.920,0.910,0.900,0.890,0.880,0.870,0.860,0.850,0.840,0.830,0.820,0.810,0.800,0.790,0.780,0.770,0.760,0.750,0.740,0.730,0.720,0.710,0.700,0.700
   }; 
-
-
 
 
 void setup() {
@@ -141,27 +142,36 @@ void wifi_connect(){
       break;
     }
   }
+  connectAttempts = 0;
   client.connect(server, port);
   // Initialize the server (telnet or web socket) of RemoteDebug
   String Host_Name =  String(WiFi.localIP());
   Debug.begin(Host_Name);
   Debug.setResetCmdEnabled(true); // Enable the reset command
-}
+  }
 
 void nmea_sender(){ // Compile san send the nmea sentence.
- //rpmtach = random(1200, 1300); //used for debugging, fake RPM.
+ rpmtach = random(1200, 3300); //used for debugging, fake RPM.
      String nmea_rpm_str = "$IIXDR,T," + String(rpmtach) + ".0,R,ENGINE#0";
      int nmea_len = nmea_rpm_str.length() + 1;
      char nmea_array[nmea_len]; 
      nmea_rpm_str.toCharArray(nmea_array, nmea_len);
-     client.print(nmea_rpm_str);
-     client.print("*");
-     client.println(nmea0183_checksum(nmea_array), HEX);
-     //client.println("$IIXDR,T,800.0,R,ENGINE#0*73");
+     client.printf("%s%s%X\n", nmea_rpm_str.c_str(),"*", nmea0183_checksum(nmea_array));
      //Serial.print(nmea_rpm_str);
      //Serial.print("*");
      //Serial.println(nmea0183_checksum(nmea_array), HEX);
-    
+     //Serial.println(client.connected());
+     if ((client.connected() != 1) && (connectAttempts < 60)){
+        connectAttempts++;
+        client.connect(server, port);
+        time_since_failure = micros();
+      } else if ((micros() - time_since_failure) > 100000000  ){ 
+        connectAttempts = 0;
+      } else if (connectAttempts == 60){
+        WiFi.mode(WIFI_OFF);
+        connectAttempts++;
+        Serial.println("wifi mode off");
+      } 
       #ifndef DEBUG_DISABLED
       if (Debug.isActive(Debug.VERBOSE)) {
           debugI("Rpm   = %d", rpmtach);
@@ -249,7 +259,7 @@ void magnetfunction(){  //function that fires the banks
       GPIO.out_w1tc = (1 << tach);
       }
       else{
-      //Serial.print("revlimiter");
+      Serial.print("revlimiter");
         }
     }      
   }
