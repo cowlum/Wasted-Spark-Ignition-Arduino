@@ -45,7 +45,7 @@ unsigned long int prerevMicros = 150000;
 unsigned long int ignDelay = 2500000;
 unsigned long int dwellMicros;  
 
-long int ignAdjust = 500; //timing adjestment. Should be zero when hall effect in correct position.
+long int ignAdjust = 1000; //timing adjestment. Should be zero when hall effect in correct position.
 int rev_limit = 2200; // max rpm before spark cut
 
 bool inRange = true;
@@ -151,7 +151,7 @@ void wifi_connect(){
   }
 
 void nmea_sender(){ // Compile san send the nmea sentence.
- rpmtach = random(1200, 3300); //used for debugging, fake RPM.
+ //rpmtach = random(1200, 3300); //used for debugging, fake RPM.
      String nmea_rpm_str = "$IIXDR,T," + String(rpmtach) + ".0,R,ENGINE#0";
      int nmea_len = nmea_rpm_str.length() + 1;
      char nmea_array[nmea_len]; 
@@ -237,7 +237,7 @@ void magnetfunction(){  //function that fires the banks
   if (magnet != previousMagnet){
     if (magnet == true){ 
       previousMagnet = magnet;
-      if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
+      if ((rpm>=130) && (rpm<=rev_limit) && (inRange == true))
         {
       delayfunc();
       GPIO.out_w1ts = (1 << bank1);
@@ -249,7 +249,7 @@ void magnetfunction(){  //function that fires the banks
     }
     else {
       previousMagnet = magnet;
-      if ((rpm>=100) && (rpm<=rev_limit) && (inRange == true))
+      if ((rpm>=130) && (rpm<=rev_limit) && (inRange == true))
        {
       delayfunc();
       GPIO.out_w1ts = (1 << bank2);
