@@ -2,7 +2,7 @@ Wasted Spark Ignition System for Atomic4 Engine.
 
 Should work as the basis for most 4 cylinder engines.
 Calculates ignition timing and sends RPM to the onbaord boat computer in NMEA format.
-remotedebug can be used to access debug information while the engine runs.
+remote debug can be used to access debug information while the engine runs.
 
 Hardware:
 The coil pack is a 032 905 106b VW imitation.
