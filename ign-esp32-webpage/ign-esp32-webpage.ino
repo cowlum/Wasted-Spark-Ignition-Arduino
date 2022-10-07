@@ -1,6 +1,6 @@
-
-// 1.1 Removal of DNS and delay 1 microsecond for housekeeping on core 0
-//
+// Dual Core
+// Creates a wifi access point and hosts a simple webpage diplaying basic engine data.
+// Youtube example https://youtu.be/GZBaOKuiqLw
 //
 
 // Core Tasks
@@ -18,7 +18,7 @@ uint8_t temprature_sens_read();
 uint8_t temprature_sens_read();
 
 
-/// IGNITION SETUP
+// IGNITION SETUP
 
 //Hall Effect Sensor Settings
 #define INTERRUPT_PIN 21
@@ -313,6 +313,7 @@ else
 {
   missfire++;
   inRange = false;
+  /* for debugging
   Serial.print(" \n Range Exceeded NO FIRE");  // debugging
   Serial.print(", prerevMircros = ");
   Serial.print(prerevMicros);
@@ -322,7 +323,7 @@ else
   Serial.print(revMicros);
   Serial.print(", as a percent = ");
   Serial.print((float)revMicros/(float)prerevMicros);
-
+  */
 }
 }
 
