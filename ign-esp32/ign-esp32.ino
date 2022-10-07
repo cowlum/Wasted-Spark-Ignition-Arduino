@@ -203,15 +203,10 @@ void pulseFunction()
 
 void loop()
 {
-
-    pulseFunction();  
-     
-
-    // DEBUG
-    ///*
+pulseFunction();  
+    /*
       if (rpmDebug == 100){
         rpmDebug=1;
-//        calcAdvance = ((float)ignDelay/(float)revMicros);
         Serial.print("\n");
         Serial.print("\n RPM =  ");
         Serial.print(rpm);
@@ -225,16 +220,16 @@ void loop()
         Serial.print(ignDelay);
         //Serial.print("\n Dwell  ");
         //Serial.print(dwell);
-//        Serial.print(" \n prerevMircros ");
-//        Serial.print(prerevMicros);
-//        Serial.print(" \n  latestPulseMicros  ");
-//        Serial.print(latestPulseMicros);
+        //Serial.print(" \n prerevMircros ");
+        //Serial.print(prerevMicros);
+        //Serial.print(" \n  latestPulseMicros  ");
+        //Serial.print(latestPulseMicros);
         //Serial.print(" \n AdvanceKey  ");
         //Serial.print(advanceKey);
-//        Serial.print(" \n PrepulsMicros  ");
-//        Serial.print(prevPulseMicros);
-        Serial.print("\n as a percent = ");
-        Serial.print((float)revMicros/(float)prerevMicros);
+        //Serial.print(" \n PrepulsMicros  ");
+        //Serial.print(prevPulseMicros);
+        //Serial.print("\n as a percent = ");
+        //Serial.print((float)revMicros/(float)prerevMicros);
         //Serial.print("\n ledbuiltint ");
         //Serial.print(ledbit);
       }

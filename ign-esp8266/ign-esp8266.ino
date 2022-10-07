@@ -1,4 +1,4 @@
-
+// Single Core
 
 //Hall Effect Sensor Settings
 #define INTERRUPT_PIN 21
@@ -164,38 +164,36 @@ void pulseFunction()
       if ((revMicros < 7000) || (revMicros > 210000)){
         Serial.print(" \n REVMICROS redacted  ");
         Serial.print(revMicros);
-        //Serial.print("\n RPM =  ");
-        //Serial.print(rpm);
         revMicros = 300000;
       }
       
-      prevPulseMicros = latestPulseMicros; //latest pulse time is recrded for next time.
+      prevPulseMicros = latestPulseMicros; // Latest pulse time is recrded for next time.
 
-      //Check for wild variation
+      // Check for wild variation
       inRangefunc();
       
-      //Reset dwell
+      // Reset dwell
       dwell = 3000;
 
-      // calculate RPM based on time between pulses
+      // Calculate RPM based on time between pulses
       rpm = (revMicros*2)/1000;
       rpm = (1000/rpm)*60;
 
-      //Using rpm select the advance key for use with advance array.
+      // Using rpm select the advance key for use with advance array.
       advanceKey = round(rpm/100);
       if ((rpm < 500) && (advanceKey > 10))  { // Probably not needed due to the revMicros Reset.
        Serial.print(" \n ADVANCE KEY redacted");
         advanceKey = 2;
       }
 
-      //Adjust length of dwell.
+      // Adjust length of dwell.
       dwell = (dwell * dwellPercentage[advanceKey]);
 
-      //Calculate thewait time before pin up. 
+      // Calculate thewait time before pin up. 
       ignDelay = (revMicros * (advancePercentage[advanceKey]));
       ignDelay = ignDelay + ignAdjust; 
 
-      //With timing calculated run the magnet polarity check and pinup/down appropriately.
+      // With timing calculated run the magnet polarity check and pinup/down appropriately.
       magnetfunction();
   }
 }
@@ -203,15 +201,10 @@ void pulseFunction()
 
 void loop()
 {
-
-    pulseFunction();  
-     
-
-    // DEBUG
-    ///*
+pulseFunction();  
+    /*
       if (rpmDebug == 100){
         rpmDebug=1;
-//        calcAdvance = ((float)ignDelay/(float)revMicros);
         Serial.print("\n");
         Serial.print("\n RPM =  ");
         Serial.print(rpm);
@@ -225,16 +218,16 @@ void loop()
         Serial.print(ignDelay);
         //Serial.print("\n Dwell  ");
         //Serial.print(dwell);
-//        Serial.print(" \n prerevMircros ");
-//        Serial.print(prerevMicros);
-//        Serial.print(" \n  latestPulseMicros  ");
-//        Serial.print(latestPulseMicros);
+        //Serial.print(" \n prerevMircros ");
+        //Serial.print(prerevMicros);
+        //Serial.print(" \n  latestPulseMicros  ");
+        //Serial.print(latestPulseMicros);
         //Serial.print(" \n AdvanceKey  ");
         //Serial.print(advanceKey);
-//        Serial.print(" \n PrepulsMicros  ");
-//        Serial.print(prevPulseMicros);
-        Serial.print("\n as a percent = ");
-        Serial.print((float)revMicros/(float)prerevMicros);
+        //Serial.print(" \n PrepulsMicros  ");
+        //Serial.print(prevPulseMicros);
+        //Serial.print("\n as a percent = ");
+        //Serial.print((float)revMicros/(float)prerevMicros);
         //Serial.print("\n ledbuiltint ");
         //Serial.print(ledbit);
       }

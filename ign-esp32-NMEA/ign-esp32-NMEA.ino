@@ -1,5 +1,5 @@
-// 1.1 Removal of DNS and delay 1 microsecond for housekeeping on core 0
-//
+// Dual Core
+// Connects to a access point and sends an NMEA IIRPM string
 //
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 #include <WiFi.h>
@@ -225,14 +225,14 @@ void delayfunc(){
     }
 }
 
-//duration of dwell
+// Duration of dwell
 void delaydwellfunc(){ 
     dwellMicros = micros();
     while ((micros() - dwellMicros <= dwell) && (newPulse == false)) {
       }
     }
 
-//If magnet polarity change, wait 1/2 rpm duration, pin up for dwell duration, then pin down. 
+// If magnet polarity change, wait 1/2 rpm duration, pin up for dwell duration, then pin down. 
 void magnetfunction(){  //function that fires the banks
   if (magnet != previousMagnet){
     if (magnet == true){ 
@@ -277,46 +277,47 @@ void inRangefunc(){
   missfire++;
   inRange = false;
   /*
-  Serial.print(" \n Range Exceeded NO FIRE");  // debugging
-  Serial.print(", prerevMircros = ");
-  Serial.print(prerevMicros);
-  Serial.print(", igndelay = ");
-  Serial.print(ignDelay);
-  Serial.print(", revMicros = ");
-  Serial.print(revMicros);
-  Serial.print(", as a percent = ");
-  Serial.print((float)revMicros/(float)prerevMicros);
+    // Print details if for debugging if there is a missfire.
+    Serial.print(" \n Range Exceeded NO FIRE");  // debugging
+    Serial.print(", prerevMircros = ");
+    Serial.print(prerevMicros);
+    Serial.print(", igndelay = ");
+    Serial.print(ignDelay);
+    Serial.print(", revMicros = ");
+    Serial.print(revMicros);
+    Serial.print(", as a percent = ");
+    Serial.print((float)revMicros/(float)prerevMicros);
   */}
 }
 
 /*
 Upon newPulse from interrupt.
-last 1/2 rpm time is set to prerevMicros for inrange func to utilise.
-latest 1/2 rpm time is recorded and checked for duration limits.
+Previous 1/2 rpm time is set to prerevMicros for the inRangefunc function to utilise.
+Latest 1/2 rpm time is recorded and checked for duration limits.
 */
 void pulseFunction(){
       if (newPulse == true) {
       newPulse = false;  
       prerevMicros=revMicros; // In range function
      
-      revMicros = latestPulseMicros - prevPulseMicros;   // revMicros equals the new pulse just taken minus the old revmicros
+      // revMicros equals the new pulse just taken minus the old revmicros
+      revMicros = latestPulseMicros - prevPulseMicros;   
       if ((revMicros < 7000) || (revMicros > 210000)){
         Serial.print(" \n REVMICROS redacted  ");
         Serial.print(revMicros);
-        //Serial.print("\n RPM =  ");
-        //Serial.print(rpm);
         revMicros = 300000;
       }
       
-      prevPulseMicros = latestPulseMicros; //latest pulse time is recrded for next time.
+      // Latest pulse time is recrded for next
+      prevPulseMicros = latestPulseMicros;  time.
 
-      //Check for wild variation
+      // Check for wild variation
       inRangefunc();
       
-      //Reset dwell
+      // Reset dwell
       dwell = 3000;
 
-      // calculate RPM based on time between pulses
+      // Calculate RPM based on time between pulses
       rpm = (revMicros*2)/1000;
       rpm = (1000/rpm)*60;
       rpmtach = (revMicros*2)/1000;
@@ -327,17 +328,17 @@ void pulseFunction(){
                 
       advancetach = 180-(180*(float)advancePercentage[advanceKey]);
 
-      //Using rpm select the advance key for use with advance array.
+      // Using rpm select the advance key for use with advance array.
       advanceKey = round(rpm/100);
       if ((rpm < 500) && (advanceKey > 10))  { // Probably not needed due to the revMicros Reset.
        Serial.print(" \n ADVANCE KEY redacted");
         advanceKey = 2;
       }
 
-      //Adjust length of dwell.
+      // Adjust the dwell time to suit RPM via advanceKey.
       dwell = (dwell * dwellPercentage[advanceKey]);
 
-      //Calculate thewait time before pin up. 
+      // Calculate the wait time before pin up. 
       ignDelay = (revMicros * (advancePercentage[advanceKey]));
       ignDelay = ignDelay + ignAdjust; 
 
