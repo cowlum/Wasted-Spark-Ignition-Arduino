@@ -228,7 +228,7 @@ void wifisetup(){
 
 //#### LOGIC FOR IGNITION ######
 
-// interrupt triggers, turn off going high on coil pack(may be redundant),ser time of interrupt, newpulse and magnet polarity.
+// interrupt triggers, turn off going high on coil pack(can be redundant somtimes),set time of interrupt, newpulse and magnet polarity.
 void hallChanged() 
 {
       GPIO.out_w1tc = (1 << bank1);
