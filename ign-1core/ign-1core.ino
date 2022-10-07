@@ -203,6 +203,7 @@ void loop()
 {
 pulseFunction();  
     /*
+    // Debug
       if (rpmDebug == 100){
         rpmDebug=1;
         Serial.print("\n");
